@@ -1897,9 +1897,12 @@ static void hdmi_av_composer(struct dw_hdmi *hdmi,
 	int hblank, vblank, h_de_hs, v_de_vs, hsync_len, vsync_len;
 	unsigned int vdisplay, hdisplay;
 
-	vmode->mtmdsclock = vmode->mpixelclock = mode->clock * 1000;
+//	vmode->mtmdsclock = vmode->mpixelclock = mode->clock * 1000;
+	vmode->mpixelclock = mode->clock * 1000;
 
 	dev_dbg(hdmi->dev, "final pixclk = %d\n", vmode->mpixelclock);
+
+	vmode->mtmdsclock = vmode->mpixelclock;
 
 	if (!hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format)) {
 		switch (hdmi_bus_fmt_color_depth(
