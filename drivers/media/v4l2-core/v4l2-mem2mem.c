@@ -620,9 +620,7 @@ void v4l2_m2m_stop_streaming(struct v4l2_m2m_ctx *m2m_ctx, struct vb2_queue *q)
 							  next_dst_buf);
 		}
 	} else {
-		m2m_ctx->is_draining = false;
-		m2m_ctx->has_stopped = false;
-		m2m_ctx->next_buf_last = false;
+		v4l2_m2m_clear_state(m2m_ctx);
 	}
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_stop_streaming);
@@ -683,9 +681,9 @@ int v4l2_m2m_qbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 	 */
 	if (!V4L2_TYPE_IS_OUTPUT(vq->type) &&
 	    vb2_is_streaming(vq) && !vb2_start_streaming_called(vq) &&
-	    v4l2_m2m_dst_buf_is_last(m2m_ctx))
+	   (v4l2_m2m_has_stopped(m2m_ctx) || v4l2_m2m_dst_buf_is_last(m2m_ctx)))
 		v4l2_m2m_force_last_buf_done(m2m_ctx, vq);
-	else if ((buf->flags & V4L2_BUF_FLAG_IN_REQUEST))
+	else if (!(buf->flags & V4L2_BUF_FLAG_IN_REQUEST))
 		v4l2_m2m_try_schedule(m2m_ctx);
 
 	return 0;
@@ -994,12 +992,12 @@ int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
 		goto err_rel_entity1;
 
 	/* Connect the three entities */
-	ret = media_create_pad_link(m2m_dev->source, 0, &m2m_dev->proc, 1,
+	ret = media_create_pad_link(m2m_dev->source, 0, &m2m_dev->proc, 0,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		goto err_rel_entity2;
 
-	ret = media_create_pad_link(&m2m_dev->proc, 0, &m2m_dev->sink, 0,
+	ret = media_create_pad_link(&m2m_dev->proc, 1, &m2m_dev->sink, 0,
 			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
 	if (ret)
 		goto err_rm_links0;

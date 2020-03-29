@@ -49,6 +49,7 @@ struct meson_cvbs_mode meson_cvbs_modes[MESON_CVBS_MODES_COUNT] = {
 				 720, 732, 795, 864, 0, 576, 580, 586, 625, 0,
 				 DRM_MODE_FLAG_INTERLACE),
 			.vrefresh = 50,
+			.picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3,
 		},
 	},
 	{ /* NTSC */
@@ -58,6 +59,7 @@ struct meson_cvbs_mode meson_cvbs_modes[MESON_CVBS_MODES_COUNT] = {
 				720, 739, 801, 858, 0, 480, 488, 494, 525, 0,
 				DRM_MODE_FLAG_INTERLACE),
 			.vrefresh = 60,
+			.picture_aspect_ratio = HDMI_PICTURE_ASPECT_4_3,
 		},
 	},
 };
@@ -211,8 +213,10 @@ static void meson_venc_cvbs_encoder_mode_set(struct drm_encoder *encoder,
 		meson_venci_cvbs_mode_set(priv, meson_mode->enci);
 
 		/* Setup 27MHz vclk2 for ENCI and VDAC */
-		meson_vclk_setup(priv, MESON_VCLK_TARGET_CVBS, MESON_VCLK_CVBS,
-				 MESON_VCLK_CVBS, MESON_VCLK_CVBS, true);
+		meson_vclk_setup(priv, MESON_VCLK_TARGET_CVBS,
+				 MESON_VCLK_CVBS, MESON_VCLK_CVBS,
+				 MESON_VCLK_CVBS, MESON_VCLK_CVBS,
+				 true);
 	}
 }
 

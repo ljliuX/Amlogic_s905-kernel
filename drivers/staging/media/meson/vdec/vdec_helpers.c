@@ -299,6 +299,10 @@ static void dst_buf_done(struct amvdec_session *sess,
 			sess->sequence_cap - 1);
 		v4l2_event_queue_fh(&sess->fh, &ev);
 		vbuf->flags |= V4L2_BUF_FLAG_LAST;
+	} else if (sess->status == STATUS_NEEDS_RESUME) {
+		/* Mark LAST for drained show frames during a source change */
+		vbuf->flags |= V4L2_BUF_FLAG_LAST;
+		sess->sequence_cap = 0;
 	} else if (sess->should_stop)
 		dev_dbg(dev, "should_stop, %u bufs remain\n",
 			atomic_read(&sess->esparser_queued_bufs));
@@ -444,7 +448,8 @@ void amvdec_src_change(struct amvdec_session *sess, u32 width,
 	 * Check if the capture queue is already configured well for our
 	 * usecase. If so, keep decoding with it and do not send the event
 	 */
-	if (sess->width == width &&
+	if (sess->streamon_cap &&
+	    sess->width == width &&
 	    sess->height == height &&
 	    dpb_size <= sess->num_dst_bufs) {
 		sess->fmt_out->codec_ops->resume(sess);
