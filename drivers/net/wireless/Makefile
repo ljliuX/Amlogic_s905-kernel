@@ -30,7 +30,7 @@ obj-$(CONFIG_MAC80211_HWSIM)	+= mac80211_hwsim.o
 
 obj-$(CONFIG_VIRT_WIFI)	+= virt_wifi.o
 obj-$(CONFIG_88XXAU) += rtl8812au/
-obj-$(CONFIG_RTL8821CU) += rtl8811cu/
+obj-$(CONFIG_RTL8821CU) += rtl8821cu/
 obj-$(CONFIG_RTL8188EU) += rtl8188eu/
 obj-$(CONFIG_RTL88x2BU) += rtl88x2bu/
 obj-$(CONFIG_RTL8723DS) += rtl8723ds/
