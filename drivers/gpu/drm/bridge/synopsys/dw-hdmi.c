@@ -96,6 +96,12 @@ static const u16 csc_coeff_rgb_limited[3][4] = {
 	{ 0x0000, 0x0000, 0x1B7C, 0x0020 }
 };
 
+static const u16 csc_coeff_rgb_full_to_rgb_limited[3][4] = {
+	{ 0x1b7c, 0x0000, 0x0000, 0x0020 },
+	{ 0x0000, 0x1b7c, 0x0000, 0x0020 },
+	{ 0x0000, 0x0000, 0x1b7c, 0x0020 }
+};
+
 struct hdmi_vmode {
 	bool mdataenablepolarity;
 
@@ -1659,6 +1665,18 @@ static void hdmi_config_AVI(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
+	if (hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
+		drm_hdmi_avi_infoframe_quant_range(&frame, &hdmi->connector,
+						   mode,
+						   hdmi->hdmi_data.rgb_limited_range ?
+						   HDMI_QUANTIZATION_RANGE_LIMITED :
+						   HDMI_QUANTIZATION_RANGE_FULL);
+	} else {
+		frame.quantization_range = HDMI_QUANTIZATION_RANGE_DEFAULT;
+		frame.ycc_quantization_range =
+			HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
+	}
+
 	if (hdmi_bus_fmt_is_yuv444(hdmi->hdmi_data.enc_out_bus_format))
 		frame.colorspace = HDMI_COLORSPACE_YUV444;
 	else if (hdmi_bus_fmt_is_yuv422(hdmi->hdmi_data.enc_out_bus_format))
@@ -2196,6 +2214,10 @@ static int dw_hdmi_setup(struct dw_hdmi *hdmi, struct drm_display_mode *mode)
 
 	if (hdmi->hdmi_data.enc_out_bus_format == MEDIA_BUS_FMT_FIXED)
 		hdmi->hdmi_data.enc_out_bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+
+	hdmi->hdmi_data.rgb_limited_range = hdmi->sink_is_hdmi &&
+		drm_default_rgb_quant_range(mode) ==
+		HDMI_QUANTIZATION_RANGE_LIMITED;
 
 	hdmi->hdmi_data.rgb_limited_range = hdmi->sink_is_hdmi &&
 		drm_default_rgb_quant_range(mode) ==
@@ -3416,7 +3438,7 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->audio = platform_device_register_full(&pdevinfo);
 	}
 
-	if (config0 & HDMI_CONFIG0_CEC) {
+	if (!plat_data->is_cec_unusable && (config0 & HDMI_CONFIG0_CEC)) {
 		cec.hdmi = hdmi;
 		cec.ops = &dw_hdmi_cec_ops;
 		cec.irq = irq;
