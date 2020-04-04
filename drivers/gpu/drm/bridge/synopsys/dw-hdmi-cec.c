@@ -130,8 +130,7 @@ static irqreturn_t dw_hdmi_cec_hardirq(int irq, void *data)
 
 	dw_hdmi_write(cec, stat, HDMI_IH_CEC_STAT0);
 
-	/*
-	 * Status with both done and error_initiator bits have been seen
+	/* Status with both done and error_initiator bits have been seen
 	 * on Rockchip RK3328 devices, transmit attempt seems to have failed
 	 * when this happens, report as low drive and block cec-framework
 	 * 100ms before core retransmits the failed message, this seems to
