@@ -262,61 +262,6 @@ static void cedrus_h265_pred_weight_write(struct cedrus_dev *dev,
 	}
 }
 
-static void write_entry_point_list(struct cedrus_ctx *ctx,
-				   struct cedrus_run *run,
-				   unsigned int ctb_addr_x,
-				   unsigned int ctb_addr_y)
-{
-	const struct v4l2_ctrl_hevc_slice_params *slice_params;
-	const struct v4l2_ctrl_hevc_pps *pps;
-	struct cedrus_dev *dev = ctx->dev;
-	int i, x, tx, y, ty;
-	u32 *entry_points;
-
-	pps = run->h265.pps;
-	slice_params = run->h265.slice_params;
-
-	for (x = 0, tx = 0; tx < pps->num_tile_columns_minus1 + 1; tx++) {
-		if (x + pps->column_width_minus1[tx] + 1 > ctb_addr_x)
-			break;
-
-		x += pps->column_width_minus1[tx] + 1;
-	}
-
-	for (y = 0, ty = 0; ty < pps->num_tile_rows_minus1 + 1; ty++) {
-		if (y + pps->row_height_minus1[ty] + 1 > ctb_addr_y)
-			break;
-
-		y += pps->row_height_minus1[ty] + 1;
-	}
-
-	cedrus_write(dev, VE_DEC_H265_TILE_START_CTB, (y << 16) | (x << 0));
-	cedrus_write(dev, VE_DEC_H265_TILE_END_CTB,
-		     ((y + pps->row_height_minus1[ty]) << 16) |
-		     ((x + pps->column_width_minus1[tx]) << 0));
-
-	entry_points = ctx->codec.h265.entry_points_buf;
-	if (pps->flags & V4L2_HEVC_PPS_FLAG_ENTROPY_CODING_SYNC_ENABLED) {
-		for (i = 0; i < slice_params->num_entry_point_offsets; i++)
-			entry_points[i] = slice_params->entry_point_offset_minus1[i] + 1;
-	} else {
-		for (i = 0; i < slice_params->num_entry_point_offsets; i++) {
-			if (tx + 1 >= pps->num_tile_columns_minus1 + 1) {
-				x = 0;
-				tx = 0;
-				y += pps->row_height_minus1[ty++] + 1;
-			} else {
-				x += pps->column_width_minus1[tx++] + 1;
-			}
-
-			entry_points[i * 4 + 0] = slice_params->entry_point_offset_minus1[i] + 1;
-			entry_points[i * 4 + 1] = 0x0;
-			entry_points[i * 4 + 2] = (y << 16) | (x << 0);
-			entry_points[i * 4 + 3] = ((y + pps->row_height_minus1[ty]) << 16) | ((x + pps->column_width_minus1[tx]) << 0);
-		}
-	}
-}
-
 static void cedrus_h265_skip_bits(struct cedrus_dev *dev, int num)
 {
 	int count = 0;
@@ -395,6 +340,61 @@ static void cedrus_h265_write_scaling_list(struct cedrus_ctx *ctx,
 			      scaling->scaling_list_4x4[i][j];
 			cedrus_write(dev, VE_DEC_H265_SRAM_DATA, val);
 		}
+}
+
+static void write_entry_point_list(struct cedrus_ctx *ctx,
+				   struct cedrus_run *run,
+				   unsigned int ctb_addr_x,
+				   unsigned int ctb_addr_y)
+{
+	const struct v4l2_ctrl_hevc_slice_params *slice_params;
+	const struct v4l2_ctrl_hevc_pps *pps;
+	struct cedrus_dev *dev = ctx->dev;
+	int i, x, tx, y, ty;
+	u32 *entry_points;
+
+	pps = run->h265.pps;
+	slice_params = run->h265.slice_params;
+
+	for (x = 0, tx = 0; tx < pps->num_tile_columns_minus1 + 1; tx++) {
+		if (x + pps->column_width_minus1[tx] + 1 > ctb_addr_x)
+			break;
+
+		x += pps->column_width_minus1[tx] + 1;
+	}
+
+	for (y = 0, ty = 0; ty < pps->num_tile_rows_minus1 + 1; ty++) {
+		if (y + pps->row_height_minus1[ty] + 1 > ctb_addr_y)
+			break;
+
+		y += pps->row_height_minus1[ty] + 1;
+	}
+
+	cedrus_write(dev, VE_DEC_H265_TILE_START_CTB, (y << 16) | (x << 0));
+	cedrus_write(dev, VE_DEC_H265_TILE_END_CTB,
+		     ((y + pps->row_height_minus1[ty]) << 16) |
+		     ((x + pps->column_width_minus1[tx]) << 0));
+
+	entry_points = ctx->codec.h265.entry_points_buf;
+	if (pps->flags & V4L2_HEVC_PPS_FLAG_ENTROPY_CODING_SYNC_ENABLED) {
+		for (i = 0; i < slice_params->num_entry_point_offsets; i++)
+			entry_points[i] = slice_params->entry_point_offset_minus1[i] + 1;
+	} else {
+		for (i = 0; i < slice_params->num_entry_point_offsets; i++) {
+			if (tx + 1 >= pps->num_tile_columns_minus1 + 1) {
+				x = 0;
+				tx = 0;
+				y += pps->row_height_minus1[ty++] + 1;
+			} else {
+				x += pps->column_width_minus1[tx++] + 1;
+			}
+
+			entry_points[i * 4 + 0] = slice_params->entry_point_offset_minus1[i] + 1;
+			entry_points[i * 4 + 1] = 0x0;
+			entry_points[i * 4 + 2] = (y << 16) | (x << 0);
+			entry_points[i * 4 + 3] = ((y + pps->row_height_minus1[ty]) << 16) | ((x + pps->column_width_minus1[tx]) << 0);
+		}
+	}
 }
 
 static void cedrus_h265_setup(struct cedrus_ctx *ctx,
@@ -532,7 +532,7 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 
 	cedrus_write(dev, VE_DEC_H265_DEC_PCM_CTRL, reg);
 
-	if (sps->bit_depth_luma_minus8) {
+	if (sps->bit_depth_luma_minus8 == 2) {
 		unsigned int size;
 
 		size = ALIGN(ctx->src_fmt.width, 16) * ALIGN(ctx->src_fmt.height, 16);
